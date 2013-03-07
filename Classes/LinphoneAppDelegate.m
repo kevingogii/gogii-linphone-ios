@@ -144,6 +144,10 @@
 		[LinphoneLogger log:LinphoneLoggerLog format:@"PushNotification from launch received."];
 		[self processRemoteNotification:remoteNotif];
 	}
+    else if ([launchOptions objectForKey:UIApplicationLaunchOptionsURLKey])
+    {
+        [self application:application handleOpenURL:[launchOptions objectForKey:UIApplicationLaunchOptionsURLKey]];
+    }
     return YES;
 }
 
@@ -167,7 +171,17 @@
 - (void)applicationWillTerminate:(UIApplication *)application {
 	
 }
-
+-(NSMutableDictionary*)dictionaryParamFromAppLaunchURL:(NSURL*)url
+{
+    NSArray* queryComponents = [[url query] componentsSeparatedByString:@"&"];
+    NSArray* keyValComponents;
+    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithCapacity:[queryComponents count]];
+    for (NSString* keyVal in queryComponents) {
+        keyValComponents = [keyVal componentsSeparatedByString:@"="];
+        [params setObject:[keyValComponents objectAtIndex:1] forKey:[keyValComponents objectAtIndex:0]];
+    }
+    return params;
+}
 - (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url {
     [self startApplication];
     if([LinphoneManager isLcReady]) {
@@ -176,6 +190,54 @@
             DialerViewController *controller = DYNAMIC_CAST([[PhoneMainView instance] changeCurrentView:[DialerViewController compositeViewDescription]], DialerViewController);
             if(controller != nil) {
                 [controller setAddress:[url absoluteString]];
+            }
+        }
+        else if([[url scheme] isEqualToString:@"gp"] && [[url host] isEqualToString:@"account"]) {
+            //globephone setup URL
+            NSString* username = nil, *password = nil, *domain = nil, *server = nil, *port = nil;
+            NSDictionary* paramDict = [self dictionaryParamFromAppLaunchURL:url];
+            username = [paramDict objectForKey:@"sip_username"];
+            password = [paramDict objectForKey:@"sip_password"];
+            domain = [paramDict objectForKey:@"sip_realm"];
+            server = [paramDict objectForKey:@"sip_proxy"];
+            port = [paramDict objectForKey:@"sip_port"];
+            
+            //set sip info
+            LinphoneCore *lc = [LinphoneManager getLc];
+            linphone_core_clear_proxy_config([LinphoneManager getLc]);
+            linphone_core_clear_all_auth_info([LinphoneManager getLc]);
+            char normalizedUserName[256];
+            if (port) {
+                linphone_core_set_sip_port([LinphoneManager getLc], [port intValue]);
+            }
+            LinphoneAddress* linphoneAddress = linphone_address_new(linphone_core_get_identity(lc));
+            linphone_proxy_config_normalize_number(NULL, [username cStringUsingEncoding:[NSString defaultCStringEncoding]], normalizedUserName, sizeof(normalizedUserName));
+            linphone_address_set_username(linphoneAddress, normalizedUserName);
+            linphone_address_set_domain(linphoneAddress, [domain UTF8String]);
+            const char* identity = linphone_address_as_string_uri_only(linphoneAddress);
+            LinphoneProxyConfig* proxyCfg = linphone_core_create_proxy_config([LinphoneManager getLc]);
+            LinphoneAuthInfo* info = linphone_auth_info_new([username UTF8String], NULL, [password UTF8String], NULL, NULL);
+            linphone_proxy_config_set_identity(proxyCfg, identity);
+            linphone_proxy_config_set_server_addr(proxyCfg, [server UTF8String]);
+            if([server compare:domain options:NSCaseInsensitiveSearch] != 0) {
+                linphone_proxy_config_set_route(proxyCfg, [server UTF8String]);
+            }
+            int defaultExpire = [[LinphoneManager instance] lpConfigIntForKey:@"default_expires"];
+            if (defaultExpire >= 0)
+                linphone_proxy_config_expires(proxyCfg, defaultExpire);
+            linphone_proxy_config_enable_register(proxyCfg, true);
+            linphone_core_add_proxy_config([LinphoneManager getLc], proxyCfg);
+            linphone_core_set_default_proxy([LinphoneManager getLc], proxyCfg);
+            linphone_core_add_auth_info([LinphoneManager getLc], info);
+            
+        }
+        else if([[url scheme] isEqualToString:@"gp"] && [[url host] isEqualToString:@"dial"]) {
+            NSString* phoneNumber = [url query];
+            if (phoneNumber) {
+                DialerViewController *controller = DYNAMIC_CAST([[PhoneMainView instance] changeCurrentView:[DialerViewController compositeViewDescription]], DialerViewController);
+                if(controller != nil) {
+                    [controller setAddress:[url query]];
+                }
             }
         }
     }

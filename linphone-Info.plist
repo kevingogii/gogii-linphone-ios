@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleDisplayName</key>
-	<string>Linphone</string>
+	<string>Globe Phone</string>
 	<key>CFBundleExecutable</key>
 	<string>${EXECUTABLE_NAME}</string>
 	<key>CFBundleIconFiles</key>
@@ -29,7 +29,7 @@
 		</dict>
 	</dict>
 	<key>CFBundleIdentifier</key>
-	<string>org.linphone.phone</string>
+	<string>com.textplus.globephone</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleLocalizations</key>
@@ -51,9 +51,10 @@
 			<key>CFBundleURLIconFile</key>
 			<string>linphone_icon_72@2x</string>
 			<key>CFBundleURLName</key>
-			<string>org.linphone.phone</string>
+			<string>com.textplus.globephone</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>gp</string>
 				<string>sip</string>
 			</array>
 		</dict>
